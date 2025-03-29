@@ -1,0 +1,1710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>33kV Electrical Fault Simulator</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #0d6efd;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --success-color: #28a745;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+            --gray-color: #6c757d;
+            --border-color: #dee2e6;
+            --phase-a-color: #dc3545;  /* Red */
+            --phase-b-color: #fd7e14;  /* Yellow/Orange */
+            --phase-c-color: #007bff;  /* Blue */
+            --earth-color: #28a745;    /* Green */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--light-color);
+            color: var(--dark-color);
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        main {
+            display: flex;
+            flex-direction: row;
+            padding: 1rem;
+            gap: 1rem;
+            height: calc(100vh - 120px);
+        }
+
+        .control-panel {
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            width: 300px;
+            flex-shrink: 0;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .panel-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .panel-title {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+        }
+
+        .visualization-container {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            gap: 1rem;
+        }
+
+        .network-visualization, .waveform-visualization {
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 1rem;
+        }
+
+        .network-visualization {
+            height: 45%;
+        }
+
+        .waveform-visualization {
+            height: 55%;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-check {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-check-input {
+            margin-right: 0.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            margin-right: 0.5rem;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: var(--gray-color);
+            color: white;
+        }
+
+        .btn-block {
+            display: block;
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+
+        .legend {
+            display: flex;
+            flex-direction: column;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 3px;
+            margin-right: 10px;
+        }
+
+        /* Circuit Diagram */
+        .component {
+            stroke: var(--dark-color);
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .busbar {
+            fill: #dae0e5;
+        }
+
+        .transformer circle {
+            fill: white;
+        }
+
+        .circuit-breaker rect {
+            fill: white;
+        }
+
+        .circuit-breaker-open line {
+            transform: rotate(90deg);
+            transform-origin: center;
+        }
+
+        .current-flow {
+            stroke-dasharray: 5, 3;
+            animation: flow 0.5s linear infinite;
+        }
+
+        .phase-a {
+            stroke: var(--phase-a-color);
+        }
+
+        .phase-b {
+            stroke: var(--phase-b-color);
+        }
+
+        .phase-c {
+            stroke: var(--phase-c-color);
+        }
+
+        .earth {
+            stroke: var(--earth-color);
+        }
+
+        .fault-indicator {
+            fill: var(--warning-color);
+            stroke: var(--danger-color);
+            stroke-width: 2;
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes flow {
+            to {
+                stroke-dashoffset: -8;
+            }
+        }
+
+        @keyframes pulse {
+            to {
+                transform: scale(1.2);
+                opacity: 0.8;
+            }
+        }
+
+        /* Responsive design */
+        @media (max-width: 1200px) {
+            main {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .control-panel {
+                width: auto;
+                margin-bottom: 1rem;
+            }
+
+            .network-visualization, .waveform-visualization {
+                height: 500px;
+            }
+        }
+
+        /* Canvas styles */
+        canvas {
+            width: 100%;
+            height: calc(100% - 40px);
+        }
+
+        .canvas-container {
+            position: relative;
+            height: 100%;
+        }
+
+        /* Parameter values display */
+        .parameters-display {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: var(--light-color);
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+        }
+
+        .parameter-item {
+            text-align: center;
+        }
+
+        .parameter-label {
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .parameter-value {
+            font-size: 1.2rem;
+            color: var(--secondary-color);
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 1rem;
+        }
+
+        .tab {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            background-color: var(--light-color);
+        }
+
+        .tab.active {
+            background-color: white;
+            border-bottom: 2px solid var(--secondary-color);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Tooltip styles */
+        .tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+        }
+
+        /* Educational info panel */
+        .info-panel {
+            position: absolute;
+            background-color: white;
+            width: 300px;
+            padding: 1rem;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 50;
+            display: none;
+        }
+
+        .info-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+        }
+
+        .info-title {
+            margin-top: 0;
+            color: var(--secondary-color);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>33kV Electrical Distribution Network Fault Simulator</h1>
+    </header>
+
+    <main>
+        <div class="control-panel">
+            <div class="panel-section">
+                <div class="panel-title">Fault Type</div>
+                <div class="form-group">
+                    <div class="form-check">
+                        <input type="radio" id="normal" name="faultType" value="NORMAL" class="form-check-input" checked>
+                        <label for="normal">Normal Operation</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="radio" id="threephase" name="faultType" value="L-L-L" class="form-check-input">
+                        <label for="threephase">Three-phase fault (L-L-L)</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="radio" id="phasetophase" name="faultType" value="L-L" class="form-check-input">
+                        <label for="phasetophase">Phase-to-phase fault (L-L)</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="radio" id="phasetoground" name="faultType" value="L-G" class="form-check-input">
+                        <label for="phasetoground">Single-phase-to-earth fault (L-G)</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="radio" id="doublephasetoground" name="faultType" value="L-L-G" class="form-check-input">
+                        <label for="doublephasetoground">Phase-to-phase-to-earth fault (L-L-G)</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">Fault Location</div>
+                <div class="form-group">
+                    <select id="faultLocation">
+                        <option value="busbar">33kV Busbar</option>
+                        <option value="feeder1">Outgoing Feeder 1</option>
+                        <option value="feeder2">Outgoing Feeder 2</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">Fault Parameters</div>
+                <div class="form-group">
+                    <label for="pointOnWave">Point-on-wave (degrees):</label>
+                    <input type="range" id="pointOnWave" min="0" max="180" value="0" step="15">
+                    <div id="pointOnWaveValue">0°</div>
+                </div>
+                <div class="form-group">
+                    <label for="xrRatio">X/R Ratio:</label>
+                    <input type="number" id="xrRatio" min="1" max="40" value="10" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="faultResistance">Fault Resistance (Ω):</label>
+                    <input type="number" id="faultResistance" min="0" max="10" value="0.1" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label for="systemVoltage">System Voltage (kV):</label>
+                    <input type="number" id="systemVoltage" min="10" max="40" value="33" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="sourceMVA">Source MVA:</label>
+                    <input type="number" id="sourceMVA" min="50" max="1000" value="500" step="10">
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <button id="runSimulation" class="btn btn-primary btn-block">Run Simulation</button>
+                <button id="toggleCircuitBreaker" class="btn btn-secondary btn-block">Toggle Circuit Breaker</button>
+                <button id="educationalInfo" class="btn btn-secondary btn-block">Educational Information</button>
+            </div>
+        </div>
+
+        <div class="visualization-container">
+            <div class="network-visualization">
+                <div class="panel-title">Network Diagram</div>
+                <div id="networkDiagram" style="width: 100%; height: calc(100% - 30px); position: relative;">
+                    <svg id="networkSvg" width="100%" height="100%" viewBox="0 0 1000 400">
+                        <!-- Dynamic content will be generated by JavaScript -->
+                    </svg>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: var(--phase-a-color);"></div>
+                            <div>Phase A (Red)</div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: var(--phase-b-color);"></div>
+                            <div>Phase B (Yellow)</div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: var(--phase-c-color);"></div>
+                            <div>Phase C (Blue)</div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: var(--earth-color);"></div>
+                            <div>Earth</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="waveform-visualization">
+                <div class="tabs">
+                    <div class="tab active" data-tab="waveform">Current Waveforms</div>
+                    <div class="tab" data-tab="parameters">Current Parameters</div>
+                    <div class="tab" data-tab="educational">Educational Notes</div>
+                </div>
+                
+                <div class="tab-content active" data-tab-content="waveform">
+                    <div class="canvas-container">
+                        <canvas id="waveformCanvas"></canvas>
+                    </div>
+                </div>
+                
+                <div class="tab-content" data-tab-content="parameters">
+                    <div class="parameters-display">
+                        <div class="parameter-item">
+                            <div class="parameter-label">Initial Symmetrical<br>Short-circuit Current (Ik")</div>
+                            <div class="parameter-value" id="initialCurrentValue">0 kA</div>
+                        </div>
+                        <div class="parameter-item">
+                            <div class="parameter-label">Peak Short-circuit<br>Current (Ip)</div>
+                            <div class="parameter-value" id="peakCurrentValue">0 kA</div>
+                        </div>
+                        <div class="parameter-item">
+                            <div class="parameter-label">Steady-state<br>Short-circuit Current (Ik)</div>
+                            <div class="parameter-value" id="steadyStateCurrentValue">0 kA</div>
+                        </div>
+                        <div class="parameter-item">
+                            <div class="parameter-label">DC Component<br>Magnitude</div>
+                            <div class="parameter-value" id="dcComponentValue">0 kA</div>
+                        </div>
+                    </div>
+                    
+                    <div style="padding: 1rem;">
+                        <h3>Parameter Descriptions</h3>
+                        <p><strong>Ik" (Initial Symmetrical Short-circuit Current):</strong> The RMS value of the AC symmetrical component of the short-circuit current at the instant the fault occurs.</p>
+                        <p><strong>Ip (Peak Short-circuit Current):</strong> The maximum instantaneous value of the short-circuit current, affected by the DC component.</p>
+                        <p><strong>Ik (Steady-state Short-circuit Current):</strong> The RMS value of the short-circuit current after all transient phenomena have decayed.</p>
+                        <p><strong>DC Component:</strong> The exponentially decaying DC offset that depends on the point-on-wave when the fault occurs and the X/R ratio of the system.</p>
+                    </div>
+                </div>
+                
+                <div class="tab-content" data-tab-content="educational">
+                    <div style="padding: 1rem; height: 100%; overflow-y: auto;">
+                        <h3>Understanding Fault Types</h3>
+                        <p><strong>Three-phase fault (L-L-L):</strong> Involves all three phases simultaneously. This is often the most severe fault type and is used for maximum short-circuit current calculations. It's the most symmetrical fault type.</p>
+                        
+                        <p><strong>Phase-to-phase fault (L-L):</strong> Occurs when two phases come into contact. The current flows between the two involved phases without earth connection.</p>
+                        
+                        <p><strong>Single-phase-to-earth fault (L-G):</strong> Happens when one phase contacts the ground. This is the most common fault type in overhead line systems.</p>
+                        
+                        <p><strong>Phase-to-phase-to-earth fault (L-L-G):</strong> Occurs when two phases contact the ground simultaneously.</p>
+                        
+                        <h3>Impact of X/R Ratio</h3>
+                        <p>The X/R ratio (reactance to resistance ratio) of the power system significantly affects fault behavior:</p>
+                        <ul>
+                            <li>Higher X/R ratio leads to larger DC components in fault currents</li>
+                            <li>Affects the peak current (Ip) by influencing the kappa factor (κ)</li>
+                            <li>Determines the time constant of the DC component decay</li>
+                        </ul>
+                        
+                        <h3>Point-on-Wave Effect</h3>
+                        <p>The point on the voltage wave where the fault initiates affects:</p>
+                        <ul>
+                            <li>Magnitude of the DC component</li>
+                            <li>Maximum when fault occurs at voltage zero-crossing (±90° current)</li>
+                            <li>Minimum/zero when fault occurs at voltage peak (0° current)</li>
+                        </ul>
+                        
+                        <h3>Circuit Breaker Considerations</h3>
+                        <p>When selecting circuit breakers, consider:</p>
+                        <ul>
+                            <li>Breaking capacity must exceed the maximum Ik" value</li>
+                            <li>Making capacity must exceed the maximum Ip value</li>
+                            <li>Each phase of a circuit breaker operates independently while being mechanically linked</li>
+                            <li>The worst-case individual phase current is used for dimensioning</li>
+                        </ul>
+                        
+                        <h3>Applicable Standards</h3>
+                        <p>The simulator calculations are based on:</p>
+                        <ul>
+                            <li>IEC 60909: Short-circuit currents in three-phase AC systems</li>
+                            <li>ENA EREC G74: Procedure to meet the requirements of IEC 60909</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="tooltip" id="tooltip"></div>
+    
+    <div class="info-panel" id="infoPanel">
+        <div class="info-close" id="infoClose">✕</div>
+        <h3 class="info-title">Educational Information</h3>
+        <div id="infoPanelContent"></div>
+    </div>
+
+    <script>
+        // Constants for the simulation
+        const SYSTEM_FREQUENCY = 50; // Hz
+        const BASE_VOLTAGE = 33; // kV
+
+        // Simulation state
+        let circuitBreakerClosed = true;
+        let currentSimulation = null;
+        let animationFrameId = null;
+
+        // DOM elements
+        const networkSvg = document.getElementById('networkSvg');
+        const waveformCanvas = document.getElementById('waveformCanvas');
+        const waveformCtx = waveformCanvas.getContext('2d');
+        const pointOnWaveInput = document.getElementById('pointOnWave');
+        const pointOnWaveValue = document.getElementById('pointOnWaveValue');
+        const runSimulationBtn = document.getElementById('runSimulation');
+        const toggleCircuitBreakerBtn = document.getElementById('toggleCircuitBreaker');
+        const tooltip = document.getElementById('tooltip');
+        const educationalInfoBtn = document.getElementById('educationalInfo');
+        const infoPanel = document.getElementById('infoPanel');
+        const infoClose = document.getElementById('infoClose');
+        const tabs = document.querySelectorAll('.tab');
+        
+        // Parameter display elements
+        const initialCurrentValue = document.getElementById('initialCurrentValue');
+        const peakCurrentValue = document.getElementById('peakCurrentValue');
+        const steadyStateCurrentValue = document.getElementById('steadyStateCurrentValue');
+        const dcComponentValue = document.getElementById('dcComponentValue');
+
+        // Power system parameters
+        const powerSystemParams = {
+            systemVoltage: 33, // kV
+            sourceMVA: 500, // MVA
+            frequency: 50, // Hz
+            baseZ: 0, // Calculated based on MVA and voltage
+            systemZ: { r: 0, x: 0 }, // Calculated based on X/R ratio
+        };
+
+        // Fault parameters
+        const faultParams = {
+            type: 'NORMAL',
+            location: 'feeder1',
+            pointOnWave: 0, // degrees
+            xrRatio: 10,
+            faultResistance: 0.1, // ohms
+        };
+
+        // Current parameters
+        const currentParams = {
+            initialSymmetrical: 0, // Ik" (kA)
+            peakCurrent: 0, // Ip (kA)
+            steadyState: 0, // Ik (kA)
+            dcComponent: 0, // DC component (kA)
+            phases: [
+                { rms: 0, peak: 0, angle: 0, dcOffset: 0 }, // Phase A
+                { rms: 0, peak: 0, angle: -120, dcOffset: 0 }, // Phase B
+                { rms: 0, peak: 0, angle: 120, dcOffset: 0 }, // Phase C
+            ],
+        };
+
+        // Initialize the application
+        function init() {
+            drawNetworkDiagram();
+            setupEventListeners();
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            drawWaveforms();
+            
+            // Initialize tabs
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Remove active class from all tabs and content
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    
+                    // Add active class to clicked tab
+                    tab.classList.add('active');
+                    
+                    // Show corresponding content
+                    const tabContent = document.querySelector(`.tab-content[data-tab-content="${tab.dataset.tab}"]`);
+                    tabContent.classList.add('active');
+                });
+            });
+        }
+
+        // Set up event listeners
+        function setupEventListeners() {
+            // Run simulation button
+            runSimulationBtn.addEventListener('click', () => {
+                updateFaultParameters();
+                runSimulation();
+            });
+            
+            // Toggle circuit breaker
+            toggleCircuitBreakerBtn.addEventListener('click', () => {
+                circuitBreakerClosed = !circuitBreakerClosed;
+                drawNetworkDiagram();
+                if (!circuitBreakerClosed) {
+                    // Stop current flows when breaker is open
+                    stopCurrentFlows();
+                } else if (faultParams.type !== 'NORMAL') {
+                    // Restart current flows if a fault is active
+                    updateCurrentFlows();
+                }
+            });
+            
+            // Point on wave slider
+            pointOnWaveInput.addEventListener('input', () => {
+                pointOnWaveValue.textContent = `${pointOnWaveInput.value}°`;
+            });
+            
+            // Educational info button
+            educationalInfoBtn.addEventListener('click', () => {
+                showEducationalInfo();
+            });
+            
+            // Close info panel
+            infoClose.addEventListener('click', () => {
+                infoPanel.style.display = 'none';
+            });
+            
+            // Fault type radio buttons
+            document.querySelectorAll('input[name="faultType"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    faultParams.type = e.target.value;
+                });
+            });
+            
+            // Fault location dropdown
+            document.getElementById('faultLocation').addEventListener('change', (e) => {
+                faultParams.location = e.target.value;
+            });
+            
+            // System parameters inputs
+            document.getElementById('systemVoltage').addEventListener('change', (e) => {
+                powerSystemParams.systemVoltage = parseFloat(e.target.value);
+            });
+            
+            document.getElementById('sourceMVA').addEventListener('change', (e) => {
+                powerSystemParams.sourceMVA = parseFloat(e.target.value);
+            });
+        }
+
+        // Update fault parameters from UI
+        function updateFaultParameters() {
+            // Get selected fault type
+            const selectedFaultType = document.querySelector('input[name="faultType"]:checked');
+            faultParams.type = selectedFaultType ? selectedFaultType.value : 'NORMAL';
+            
+            // Get selected fault location
+            faultParams.location = document.getElementById('faultLocation').value;
+            
+            // Get point on wave
+            faultParams.pointOnWave = parseInt(pointOnWaveInput.value);
+            
+            // Get X/R ratio
+            faultParams.xrRatio = parseFloat(document.getElementById('xrRatio').value);
+            
+            // Get fault resistance
+            faultParams.faultResistance = parseFloat(document.getElementById('faultResistance').value);
+            
+            // Update power system parameters
+            powerSystemParams.systemVoltage = parseFloat(document.getElementById('systemVoltage').value);
+            powerSystemParams.sourceMVA = parseFloat(document.getElementById('sourceMVA').value);
+            
+            // Calculate base impedance
+            powerSystemParams.baseZ = Math.pow(powerSystemParams.systemVoltage, 2) / powerSystemParams.sourceMVA;
+            
+            // Calculate system impedance
+            const totalZ = powerSystemParams.baseZ / 10; // Simplified source impedance (10% of base)
+            const angle = Math.atan(faultParams.xrRatio);
+            powerSystemParams.systemZ = {
+                r: totalZ * Math.cos(angle),
+                x: totalZ * Math.sin(angle)
+            };
+        }
+
+        // Run the fault simulation
+        function runSimulation() {
+            // Calculate fault currents
+            calculateFaultCurrents();
+            
+            // Update network diagram with fault location
+            drawNetworkDiagram();
+            
+            // Draw the waveforms
+            drawWaveforms();
+            
+            // Update the current flows on the diagram
+            updateCurrentFlows();
+            
+            // Update parameter displays
+            updateParameterDisplays();
+        }
+
+        // Calculate fault currents based on selected parameters
+        function calculateFaultCurrents() {
+            // Reset current parameters for normal operation
+            if (faultParams.type === 'NORMAL') {
+                currentParams.initialSymmetrical = 0;
+                currentParams.peakCurrent = 0;
+                currentParams.steadyState = 0;
+                currentParams.dcComponent = 0;
+                
+                currentParams.phases.forEach(phase => {
+                    phase.rms = 0;
+                    phase.peak = 0;
+                    phase.dcOffset = 0;
+                });
+                return;
+            }
+            
+            // Calculate base values
+            const baseZ = powerSystemParams.baseZ;
+            const systemZ = powerSystemParams.systemZ;
+            const totalZ = Math.sqrt(Math.pow(systemZ.r, 2) + Math.pow(systemZ.x, 2));
+            
+            // Voltage factor per IEC 60909
+            const cFactor = 1.1;
+            
+            // Calculate fault currents based on fault type
+            let faultZ = { r: systemZ.r, x: systemZ.x };
+            let multiplier = 1.0;
+            
+            // Add fault resistance
+            faultZ.r += faultParams.faultResistance;
+            
+            switch (faultParams.type) {
+                case 'L-L-L':
+                    // Three-phase fault - no adjustment needed
+                    multiplier = 1.0;
+                    break;
+                case 'L-L':
+                    // Phase-to-phase fault - multiply by √3/2
+                    multiplier = Math.sqrt(3) / 2;
+                    break;
+                case 'L-G':
+                    // Single-phase-to-earth fault - multiply by √3/3 for simplified calculation
+                    multiplier = Math.sqrt(3) / 3;
+                    break;
+                case 'L-L-G':
+                    // Phase-to-phase-to-earth fault - multiply by √3/√2 for simplified calculation
+                    multiplier = Math.sqrt(3) / Math.sqrt(2);
+                    break;
+            }
+            
+            // Total fault impedance magnitude
+            const faultZMag = Math.sqrt(Math.pow(faultZ.r, 2) + Math.pow(faultZ.x, 2));
+            
+            // Calculate initial symmetrical short-circuit current (Ik")
+            currentParams.initialSymmetrical = (cFactor * powerSystemParams.systemVoltage) / (Math.sqrt(3) * faultZMag) * multiplier;
+            
+            // Calculate kappa factor based on X/R ratio
+            const kappa = 1.02 + 0.98 * Math.exp(-3 / faultParams.xrRatio);
+            
+            // Calculate peak short-circuit current (Ip)
+            currentParams.peakCurrent = Math.sqrt(2) * kappa * currentParams.initialSymmetrical;
+            
+            // Calculate steady-state short-circuit current (Ik) - simplified as 80% of Ik"
+            currentParams.steadyState = 0.8 * currentParams.initialSymmetrical;
+            
+            // Calculate DC component based on point-on-wave
+            // Maximum DC component occurs when fault happens at voltage zero crossing (90° from current peak)
+            const pointOnWaveRad = faultParams.pointOnWave * Math.PI / 180;
+            const dcFactor = Math.abs(Math.sin(pointOnWaveRad));
+            currentParams.dcComponent = Math.sqrt(2) * currentParams.initialSymmetrical * dcFactor;
+            
+            // Set individual phase values based on fault type
+            switch (faultParams.type) {
+                case 'L-L-L':
+                    // All phases have equal magnitude
+                    currentParams.phases.forEach((phase, index) => {
+                        phase.rms = currentParams.initialSymmetrical;
+                        phase.peak = currentParams.peakCurrent / kappa; // Base AC peak without DC
+                        
+                        // Adjust DC offset for each phase based on point-on-wave
+                        const phaseAngleRad = phase.angle * Math.PI / 180;
+                        const phaseDcFactor = Math.sin(pointOnWaveRad - phaseAngleRad);
+                        phase.dcOffset = Math.sqrt(2) * currentParams.initialSymmetrical * phaseDcFactor;
+                    });
+                    break;
+                    
+                case 'L-L':
+                    // Phase A and B are involved in fault, phase C is zero
+                    currentParams.phases[0].rms = currentParams.initialSymmetrical;
+                    currentParams.phases[0].peak = currentParams.peakCurrent / kappa;
+                    currentParams.phases[0].dcOffset = Math.sqrt(2) * currentParams.initialSymmetrical * 
+                                                      Math.sin(pointOnWaveRad - currentParams.phases[0].angle * Math.PI / 180);
+                    
+                    currentParams.phases[1].rms = currentParams.initialSymmetrical;
+                    currentParams.phases[1].peak = currentParams.peakCurrent / kappa;
+                    currentParams.phases[1].dcOffset = Math.sqrt(2) * currentParams.initialSymmetrical * 
+                                                      Math.sin(pointOnWaveRad - currentParams.phases[1].angle * Math.PI / 180);
+                    
+                    currentParams.phases[2].rms = 0;
+                    currentParams.phases[2].peak = 0;
+                    currentParams.phases[2].dcOffset = 0;
+                    break;
+                    
+                case 'L-G':
+                    // Only phase A is involved in fault
+                    currentParams.phases[0].rms = currentParams.initialSymmetrical * 3;
+                    currentParams.phases[0].peak = currentParams.peakCurrent / kappa * 3;
+                    currentParams.phases[0].dcOffset = Math.sqrt(2) * currentParams.initialSymmetrical * 3 *
+                                                      Math.sin(pointOnWaveRad - currentParams.phases[0].angle * Math.PI / 180);
+                    
+                    currentParams.phases[1].rms = 0;
+                    currentParams.phases[1].peak = 0;
+                    currentParams.phases[1].dcOffset = 0;
+                    
+                    currentParams.phases[2].rms = 0;
+                    currentParams.phases[2].peak = 0;
+                    currentParams.phases[2].dcOffset = 0;
+                    break;
+                    
+                case 'L-L-G':
+                    // Phase A and B are involved in fault, phase C is zero
+                    currentParams.phases[0].rms = currentParams.initialSymmetrical * 1.5;
+                    currentParams.phases[0].peak = currentParams.peakCurrent / kappa * 1.5;
+                    currentParams.phases[0].dcOffset = Math.sqrt(2) * currentParams.initialSymmetrical * 1.5 *
+                                                      Math.sin(pointOnWaveRad - currentParams.phases[0].angle * Math.PI / 180);
+                    
+                    currentParams.phases[1].rms = currentParams.initialSymmetrical * 1.5;
+                    currentParams.phases[1].peak = currentParams.peakCurrent / kappa * 1.5;
+                    currentParams.phases[1].dcOffset = Math.sqrt(2) * currentParams.initialSymmetrical * 1.5 *
+                                                      Math.sin(pointOnWaveRad - currentParams.phases[1].angle * Math.PI / 180);
+                    
+                    currentParams.phases[2].rms = 0;
+                    currentParams.phases[2].peak = 0;
+                    currentParams.phases[2].dcOffset = 0;
+                    break;
+            }
+        }
+
+        // Update parameter display values
+        function updateParameterDisplays() {
+            initialCurrentValue.textContent = `${currentParams.initialSymmetrical.toFixed(2)} kA`;
+            peakCurrentValue.textContent = `${currentParams.peakCurrent.toFixed(2)} kA`;
+            steadyStateCurrentValue.textContent = `${currentParams.steadyState.toFixed(2)} kA`;
+            dcComponentValue.textContent = `${currentParams.dcComponent.toFixed(2)} kA`;
+        }
+
+        // Draw the network diagram
+        // Draw waveforms on the canvas
+        function drawWaveforms() {
+            if (!waveformCanvas || !waveformCtx) return;
+            
+            // Resize canvas for proper resolution
+            resizeCanvas();
+            
+            // Clear canvas
+            waveformCtx.clearRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+            
+            // Set up coordinates
+            const width = waveformCanvas.width;
+            const height = waveformCanvas.height;
+            const padding = 40;
+            
+            const graphWidth = width - 2 * padding;
+            const graphHeight = height - 2 * padding;
+            const graphX = padding;
+            const graphY = padding;
+            
+            // Draw axes
+            waveformCtx.beginPath();
+            waveformCtx.strokeStyle = '#212529';
+            waveformCtx.lineWidth = 1;
+            
+            // X-axis
+            waveformCtx.moveTo(graphX, graphY + graphHeight/2);
+            waveformCtx.lineTo(graphX + graphWidth, graphY + graphHeight/2);
+            
+            // Y-axis
+            waveformCtx.moveTo(graphX, graphY);
+            waveformCtx.lineTo(graphX, graphY + graphHeight);
+            
+            waveformCtx.stroke();
+            
+            // If no fault, don't draw waveforms
+            if (faultParams.type === 'NORMAL') {
+                drawAxisLabels(graphX, graphY, graphWidth, graphHeight);
+                return;
+            }
+            
+            // Draw waveforms for each phase
+            const phaseColors = [
+                'var(--phase-a-color)', // Phase A (Red)
+                'var(--phase-b-color)', // Phase B (Yellow)
+                'var(--phase-c-color)'  // Phase C (Blue)
+            ];
+            
+            // Calculate max current for scaling
+            let maxCurrent = 0;
+            currentParams.phases.forEach(phase => {
+                const totalPeak = Math.abs(phase.peak + phase.dcOffset);
+                if (totalPeak > maxCurrent) maxCurrent = totalPeak;
+            });
+            
+            // If no current, set a minimum scale
+            if (maxCurrent < 0.1) maxCurrent = 10;
+            
+            // Y-scale: pixels per kA
+            const yScale = (graphHeight/2) / maxCurrent;
+            
+            // Draw each phase's waveform
+            currentParams.phases.forEach((phase, index) => {
+                if (phase.rms === 0) return; // Skip phases not involved in fault
+                
+                waveformCtx.beginPath();
+                waveformCtx.strokeStyle = phaseColors[index];
+                waveformCtx.lineWidth = 2;
+                
+                // Generate one cycle of waveform (20ms at 50Hz)
+                const timeStep = 0.1; // ms
+                const totalTime = 20; // ms (one cycle at 50Hz)
+                const frequency = 50; // Hz
+                const omega = 2 * Math.PI * frequency;
+                const timeConstant = faultParams.xrRatio / (2 * Math.PI * frequency); // DC decay time constant
+                
+                for (let t = 0; t <= totalTime; t += timeStep) {
+                    // Calculate instantaneous current
+                    // i(t) = √2 * Irms * sin(ωt + phase) + Idc * e^(-t/τ)
+                    const angle = phase.angle * Math.PI / 180;
+                    const acComponent = Math.sqrt(2) * phase.rms * Math.sin(omega * t/1000 + angle);
+                    const dcComponent = phase.dcOffset * Math.exp(-t/(timeConstant * 1000));
+                    const current = acComponent + dcComponent;
+                    
+                    // Convert to canvas coordinates
+                    const x = graphX + (t / totalTime) * graphWidth;
+                    const y = graphY + graphHeight/2 - current * yScale;
+                    
+                    if (t === 0) {
+                        waveformCtx.moveTo(x, y);
+                    } else {
+                        waveformCtx.lineTo(x, y);
+                    }
+                }
+                
+                waveformCtx.stroke();
+                
+                // Mark peak current for this phase
+                const peakTime = calculatePeakTime(phase);
+                const peakX = graphX + (peakTime / totalTime) * graphWidth;
+                const peakCurrent = calculatePeakCurrent(phase, peakTime);
+                const peakY = graphY + graphHeight/2 - peakCurrent * yScale;
+                
+                // Only mark the peak if it's the highest among all phases
+                if (Math.abs(peakCurrent) >= maxCurrent * 0.9) {
+                    // Draw peak marker
+                    waveformCtx.beginPath();
+                    waveformCtx.strokeStyle = phaseColors[index];
+                    waveformCtx.setLineDash([5, 3]);
+                    waveformCtx.moveTo(peakX, graphY + graphHeight/2);
+                    waveformCtx.lineTo(peakX, peakY);
+                    waveformCtx.stroke();
+                    waveformCtx.setLineDash([]);
+                    
+                    // Draw peak point
+                    waveformCtx.beginPath();
+                    waveformCtx.fillStyle = phaseColors[index];
+                    waveformCtx.arc(peakX, peakY, 5, 0, 2 * Math.PI);
+                    waveformCtx.fill();
+                    
+                    // Label the peak
+                    waveformCtx.fillStyle = phaseColors[index];
+                    waveformCtx.font = 'bold 12px Arial';
+                    waveformCtx.fillText('Ip (Peak)', peakX + 10, peakY);
+                }
+            });
+            
+            // Draw DC offset component if significant
+            if (currentParams.dcComponent > 0.1) {
+                waveformCtx.beginPath();
+                waveformCtx.strokeStyle = '#212529';
+                waveformCtx.lineWidth = 1.5;
+                waveformCtx.setLineDash([5, 3]);
+                
+                const timeConstant = faultParams.xrRatio / (2 * Math.PI * 50);
+                const totalTime = 20; // ms
+                
+                for (let t = 0; t <= totalTime; t += 0.5) {
+                    const dcValue = currentParams.dcComponent * Math.exp(-t/(timeConstant * 1000));
+                    const x = graphX + (t / totalTime) * graphWidth;
+                    const y = graphY + graphHeight/2 - dcValue * yScale;
+                    
+                    if (t === 0) {
+                        waveformCtx.moveTo(x, y);
+                    } else {
+                        waveformCtx.lineTo(x, y);
+                    }
+                }
+                
+                waveformCtx.stroke();
+                waveformCtx.setLineDash([]);
+            }
+            
+            // Draw axis labels
+            drawAxisLabels(graphX, graphY, graphWidth, graphHeight, maxCurrent);
+            
+            // Draw legend
+            drawLegend(graphX + graphWidth - 150, graphY + 20, phaseColors);
+        }
+        
+        // Draw axis labels for the waveform
+        function drawAxisLabels(graphX, graphY, graphWidth, graphHeight, maxCurrent = 10) {
+            waveformCtx.font = '12px Arial';
+            waveformCtx.fillStyle = 'var(--gray-color)';
+            waveformCtx.textAlign = 'center';
+            
+            // X-axis labels (time in ms)
+            for (let t = 0; t <= 20; t += 5) {
+                const x = graphX + (t / 20) * graphWidth;
+                waveformCtx.fillText(t.toString(), x, graphY + graphHeight/2 + 20);
+            }
+            
+            waveformCtx.fillText('Time (ms)', graphX + graphWidth/2, graphY + graphHeight + 20);
+            
+            // Y-axis labels (current in kA)
+            waveformCtx.textAlign = 'right';
+            
+            const yLabels = [maxCurrent, maxCurrent/2, 0, -maxCurrent/2, -maxCurrent];
+            const yPositions = [graphY, graphY + graphHeight/4, graphY + graphHeight/2, 
+                                graphY + 3*graphHeight/4, graphY + graphHeight];
+            
+            yLabels.forEach((label, index) => {
+                waveformCtx.fillText(label.toFixed(1) + ' kA', graphX - 5, yPositions[index] + 5);
+            });
+        }
+        
+        // Draw legend for the waveform
+        function drawLegend(x, y, phaseColors) {
+            const labels = ['Phase A (Red)', 'Phase B (Yellow)', 'Phase C (Blue)', 'DC Offset'];
+            const colors = [...phaseColors, '#212529'];
+            const lineStyles = [[], [], [], [5, 3]];
+            
+            waveformCtx.textAlign = 'left';
+            
+            labels.forEach((label, index) => {
+                // Only include phases involved in the fault
+                if (index < 3 && currentParams.phases[index].rms === 0) return;
+                
+                const yPos = y + index * 25;
+                
+                // Draw line sample
+                waveformCtx.beginPath();
+                waveformCtx.strokeStyle = colors[index];
+                waveformCtx.lineWidth = 2;
+                waveformCtx.setLineDash(lineStyles[index]);
+                waveformCtx.moveTo(x, yPos);
+                waveformCtx.lineTo(x + 20, yPos);
+                waveformCtx.stroke();
+                waveformCtx.setLineDash([]);
+                
+                // Draw label
+                waveformCtx.fillStyle = '#212529';
+                waveformCtx.font = '12px Arial';
+                waveformCtx.fillText(label, x + 30, yPos + 4);
+            });
+        }
+        
+        // Calculate time of peak current for a phase
+        function calculatePeakTime(phase) {
+            // This is a simplified calculation for demonstration purposes
+            // In reality, would need to solve for the time when d/dt of the total current = 0
+            
+            // For a pure AC waveform, peak would be at 5ms (90°) for a 50Hz system
+            // With DC offset, the peak will shift earlier or later depending on the DC sign
+            
+            const frequency = 50; // Hz
+            const basePeakTime = 5; // ms (90° at 50Hz)
+            
+            // Adjust peak time based on DC offset
+            const adjustedTime = basePeakTime + (phase.dcOffset > 0 ? 1 : -1) * 2;
+            
+            // Constrain to the first cycle
+            return Math.max(0, Math.min(20, adjustedTime));
+        }
+        
+        // Calculate peak current at a given time
+        function calculatePeakCurrent(phase, time) {
+            const frequency = 50; // Hz
+            const omega = 2 * Math.PI * frequency;
+            const timeConstant = faultParams.xrRatio / (2 * Math.PI * frequency);
+            
+            const angle = phase.angle * Math.PI / 180;
+            const acComponent = Math.sqrt(2) * phase.rms * Math.sin(omega * time/1000 + angle);
+            const dcComponent = phase.dcOffset * Math.exp(-time/(timeConstant * 1000));
+            
+            return acComponent + dcComponent;
+        }
+        
+        // Resize the waveform canvas
+        function resizeCanvas() {
+            if (!waveformCanvas) return;
+            
+            const container = waveformCanvas.parentElement;
+            if (!container) return;
+            
+            // Set canvas dimensions to match container
+            waveformCanvas.width = container.clientWidth;
+            waveformCanvas.height = container.clientHeight;
+        }
+        
+        // Update current flows on the network diagram
+        function updateCurrentFlows() {
+            // Remove any existing current flows
+            stopCurrentFlows();
+            
+            // If circuit breaker is open or no fault, no current flows
+            if (!circuitBreakerClosed || faultParams.type === 'NORMAL') {
+                return;
+            }
+            
+            const gridX = 100;
+            const gridY = 200;
+            const transformerX = 200;
+            const transformerY = 200;
+            const busbarX = 300;
+            const busbarY = 200;
+            const busbarLength = 400;
+            const feederStartX = busbarX + busbarLength - 200;
+            const phaseFeederY = busbarY + 15;
+            const circuitBreakerX = 400;
+            const feederSpacing = 40;
+            
+            // Define which phases are active based on fault type
+            let activePhases = [];
+            switch (faultParams.type) {
+                case 'L-L-L':
+                    activePhases = [0, 1, 2]; // All phases
+                    break;
+                case 'L-L':
+                    activePhases = [0, 1]; // Phase A and B
+                    break;
+                case 'L-G':
+                    activePhases = [0]; // Only Phase A
+                    // Also need to show earth path
+                    addEarthReturnPath();
+                    break;
+                case 'L-L-G':
+                    activePhases = [0, 1]; // Phase A and B
+                    // Also need to show earth path
+                    addEarthReturnPath();
+                    break;
+            }
+            
+            // Add current flow paths for active phases
+            activePhases.forEach(phaseIndex => {
+                addCurrentFlowPath(phaseIndex);
+            });
+        }
+        
+        // Add current flow animation for a specific phase
+        function addCurrentFlowPath(phaseIndex) {
+            const phaseClasses = ['phase-a', 'phase-b', 'phase-c'];
+            
+            const gridX = 100;
+            const gridY = 200;
+            const transformerX = 200;
+            const transformerY = 200;
+            const busbarX = 300;
+            const busbarY = 200;
+            const circuitBreakerX = 400;
+            const circuitBreakerY = 200;
+            const feederStartX = busbarX + busbarLength - 200;
+            const feederSpacing = 40;
+            
+            // Grid to transformer
+            const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            path1.setAttribute('x1', gridX + 15);
+            path1.setAttribute('y1', gridY);
+            path1.setAttribute('x2', transformerX - 25);
+            path1.setAttribute('y2', transformerY);
+            path1.classList.add('current-flow', phaseClasses[phaseIndex]);
+            networkSvg.appendChild(path1);
+            
+            // Transformer to busbar
+            const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            path2.setAttribute('x1', transformerX + 25);
+            path2.setAttribute('y1', transformerY);
+            path2.setAttribute('x2', busbarX);
+            path2.setAttribute('y2', busbarY);
+            path2.classList.add('current-flow', phaseClasses[phaseIndex]);
+            networkSvg.appendChild(path2);
+            
+            // Find fault location
+            let faultX, faultY;
+            const faultLocation = faultParams.location;
+            const phaseFeederY = busbarY + 15;
+            
+            switch (faultLocation) {
+                case 'busbar':
+                    faultX = busbarX + 200; // Middle of busbar
+                    faultY = busbarY;
+                    
+                    // Busbar to fault
+                    const path3 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    path3.setAttribute('x1', circuitBreakerX + 20);
+                    path3.setAttribute('y1', busbarY);
+                    path3.setAttribute('x2', faultX);
+                    path3.setAttribute('y2', faultY);
+                    path3.classList.add('current-flow', phaseClasses[phaseIndex]);
+                    networkSvg.appendChild(path3);
+                    break;
+                    
+                case 'feeder1':
+                    faultX = feederStartX + phaseIndex * feederSpacing;
+                    faultY = phaseFeederY + 75;
+                    
+                    // Busbar through feeder to fault
+                    const pathFeeder = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    pathFeeder.setAttribute('x1', feederStartX + phaseIndex * feederSpacing);
+                    pathFeeder.setAttribute('y1', phaseFeederY);
+                    pathFeeder.setAttribute('x2', faultX);
+                    pathFeeder.setAttribute('y2', faultY);
+                    pathFeeder.classList.add('current-flow', phaseClasses[phaseIndex]);
+                    networkSvg.appendChild(pathFeeder);
+                    break;
+            }
+        }
+        
+        // Add earth return path for ground faults
+        function addEarthReturnPath() {
+            const transformerX = 200;
+            const transformerY = 200;
+            const feederStartX = 500;
+            const phaseFeederY = 215;
+            
+            // Path depends on fault location
+            let faultX, faultY;
+            switch (faultParams.location) {
+                case 'busbar':
+                    faultX = 500; // Middle of busbar
+                    faultY = 200;
+                    break;
+                case 'feeder1':
+                    faultX = feederStartX;
+                    faultY = phaseFeederY + 75;
+                    break;
+                default:
+                    faultX = feederStartX;
+                    faultY = phaseFeederY + 75;
+            }
+            
+            // Earth return path: fault location to ground
+            const earthPath1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            earthPath1.setAttribute('x1', faultX);
+            earthPath1.setAttribute('y1', faultY);
+            earthPath1.setAttribute('x2', faultX);
+            earthPath1.setAttribute('y2', faultY + 50);
+            earthPath1.classList.add('current-flow', 'earth');
+            networkSvg.appendChild(earthPath1);
+            
+            // Ground path to transformer neutral
+            const earthPath2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            earthPath2.setAttribute('d', `M${faultX},${faultY + 50} H${transformerX} V${transformerY + 50}`);
+            earthPath2.classList.add('current-flow', 'earth');
+            earthPath2.setAttribute('fill', 'none');
+            networkSvg.appendChild(earthPath2);
+        }
+        
+        // Remove all current flow animations
+        function stopCurrentFlows() {
+            const currentFlows = networkSvg.querySelectorAll('.current-flow');
+            currentFlows.forEach(flow => {
+                flow.remove();
+            });
+        }
+        
+        // Show educational information panel
+        function showEducationalInfo() {
+            const infoPanel = document.getElementById('infoPanel');
+            const infoPanelContent = document.getElementById('infoPanelContent');
+            
+            // Content based on selected fault type
+            let content = '';
+            switch (faultParams.type) {
+                case 'NORMAL':
+                    content = `
+                        <h4>Normal Operation</h4>
+                        <p>During normal operation, balanced three-phase currents flow through the network. 
+                        Each phase carries approximately equal current with 120° phase shift between them.</p>
+                        <p>Key characteristics:</p>
+                        <ul>
+                            <li>Balanced three-phase system</li>
+                            <li>No fault currents present</li>
+                            <li>Circuit breakers remain closed</li>
+                            <li>Power flows from source to load</li>
+                        </ul>
+                    `;
+                    break;
+                    
+                case 'L-L-L':
+                    content = `
+                        <h4>Three-Phase Fault (L-L-L)</h4>
+                        <p>A three-phase fault involves all three phases simultaneously shorting together.
+                        This is typically the most severe fault type and results in the highest fault currents.</p>
+                        <p>Key characteristics:</p>
+                        <ul>
+                            <li>Highest symmetrical fault current</li>
+                            <li>All three phases involved</li>
+                            <li>No earth connection required</li>
+                            <li>Used for maximum short-circuit current ratings</li>
+                            <li>DC offset depends on point-on-wave of initiation</li>
+                        </ul>
+                        <p>Circuit breaker considerations:</p>
+                        <ul>
+                            <li>All three phases interrupt simultaneously</li>
+                            <li>Required breaking capacity based on Ik"</li>
+                            <li>Required making capacity based on Ip</li>
+                        </ul>
+                    `;
+                    break;
+                    
+                case 'L-L':
+                    content = `
+                        <h4>Phase-to-Phase Fault (L-L)</h4>
+                        <p>A phase-to-phase fault occurs when two phases come into contact.
+                        Current flows between the two phases without earth connection.</p>
+                        <p>Key characteristics:</p>
+                        <ul>
+                            <li>Approximately 87% (√3/2) of three-phase fault current</li>
+                            <li>Two phases involved</li>
+                            <li>No earth connection</li>
+                            <li>Common in overhead line systems</li>
+                        </ul>
+                        <p>Circuit breaker considerations:</p>
+                        <ul>
+                            <li>Two phases see high fault currents</li>
+                            <li>The third phase sees minimal current</li>
+                            <li>The three phases of the circuit breaker are mechanically linked</li>
+                        </ul>
+                    `;
+                    break;
+                    
+                case 'L-G':
+                    content = `
+                        <h4>Single-Phase-to-Earth Fault (L-G)</h4>
+                        <p>A single-phase-to-earth fault occurs when one phase contacts the ground.
+                        This is the most common fault type in power systems.</p>
+                        <p>Key characteristics:</p>
+                        <ul>
+                            <li>Fault current magnitude depends on earthing system</li>
+                            <li>Only one phase directly involved</li>
+                            <li>Earth return path is critical</li>
+                            <li>Current magnitude affected by fault resistance</li>
+                            <li>Most common fault type (~70-80% of all faults)</li>
+                        </ul>
+                        <p>Circuit breaker considerations:</p>
+                        <ul>
+                            <li>One phase sees high fault current</li>
+                            <li>Other phases remain at normal load current</li>
+                            <li>The affected phase may see 3x the symmetrical fault current in solidly earthed systems</li>
+                        </ul>
+                    `;
+                    break;
+                    
+                case 'L-L-G':
+                    content = `
+                        <h4>Phase-to-Phase-to-Earth Fault (L-L-G)</h4>
+                        <p>A phase-to-phase-to-earth fault occurs when two phases contact the ground simultaneously.
+                        This combines characteristics of both L-L and L-G faults.</p>
+                        <p>Key characteristics:</p>
+                        <ul>
+                            <li>Two phases directly involved</li>
+                            <li>Earth return path provides additional current path</li>
+                            <li>Typically results in higher currents than L-L fault</li>
+                            <li>Often begins as L-G and evolves into L-L-G</li>
+                        </ul>
+                        <p>Circuit breaker considerations:</p>
+                        <ul>
+                            <li>Two phases see high fault currents</li>
+                            <li>Earth provides additional current path</li>
+                            <li>Distribution of currents depends on system earthing</li>
+                        </ul>
+                    `;
+                    break;
+            }
+            
+            // Add information about parameters
+            content += `
+                <h4>Current Parameters Explained</h4>
+                <p><strong>Initial Symmetrical Short-circuit Current (Ik"):</strong> The RMS value of the AC symmetrical component of the fault current at the instant the fault occurs, before any DC offset or decay effects.</p>
+                <p><strong>Peak Short-circuit Current (Ip):</strong> The maximum instantaneous value of the fault current, including DC offset. Calculated as Ip = κ × √2 × Ik", where κ (kappa) depends on the X/R ratio.</p>
+                <p><strong>Steady-state Short-circuit Current (Ik):</strong> The RMS value of the fault current after all transient phenomena have decayed, typically 70-80% of Ik".</p>
+                <p><strong>X/R Ratio:</strong> The ratio of system reactance to resistance, which determines the time constant of the DC component decay and affects the peak fault current through the kappa factor.</p>
+                <p><strong>Point-on-Wave:</strong> The point on the voltage waveform when the fault initiates, which affects the magnitude of the DC offset component. Maximum DC offset occurs when fault initiates at voltage zero-crossing.</p>
+            `;
+            
+            infoPanelContent.innerHTML = content;
+            infoPanel.style.display = 'block';
+        }
+        
+        // Initialize the application
+        init();
+    </script>
+</body>
+</html>
+                    
+            // Clear previous diagram
+            networkSvg.innerHTML = '';
+            
+            // Define positioning constants
+            const gridX = 100;
+            const gridY = 200;
+            const transformerX = 200;
+            const transformerY = 200;
+            const busbarX = 300;
+            const busbarY = 200;
+            const busbarLength = 400;
+            const busbarHeight = 30;
+            const circuitBreakerX = 400;
+            const circuitBreakerY = 200;
+            const feederSpacing = 40;
+            const feederLength = 150;
+            
+            // Draw power grid source
+            const grid = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            grid.classList.add('component', 'grid');
+            
+            const gridCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            gridCircle.setAttribute('cx', gridX);
+            gridCircle.setAttribute('cy', gridY);
+            gridCircle.setAttribute('r', 15);
+            
+            const gridVertical = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            gridVertical.setAttribute('x1', gridX);
+            gridVertical.setAttribute('y1', gridY - 15);
+            gridVertical.setAttribute('x2', gridX);
+            gridVertical.setAttribute('y2', gridY + 15);
+            
+            const gridHorizontal = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            gridHorizontal.setAttribute('x1', gridX - 15);
+            gridHorizontal.setAttribute('y1', gridY);
+            gridHorizontal.setAttribute('x2', gridX + 15);
+            gridHorizontal.setAttribute('y2', gridY);
+            
+            const gridLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            gridLabel.setAttribute('x', gridX);
+            gridLabel.setAttribute('y', gridY + 40);
+            gridLabel.setAttribute('text-anchor', 'middle');
+            gridLabel.textContent = 'Grid';
+            
+            grid.appendChild(gridCircle);
+            grid.appendChild(gridVertical);
+            grid.appendChild(gridHorizontal);
+            grid.appendChild(gridLabel);
+            
+            networkSvg.appendChild(grid);
+            
+            // Connection line from grid to transformer
+            const gridConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            gridConnection.setAttribute('x1', gridX + 15);
+            gridConnection.setAttribute('y1', gridY);
+            gridConnection.setAttribute('x2', transformerX - 25);
+            gridConnection.setAttribute('y2', transformerY);
+            gridConnection.classList.add('component');
+            networkSvg.appendChild(gridConnection);
+            
+            // Draw transformer
+            const transformer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            transformer.classList.add('component', 'transformer');
+            
+            const transformerOuterCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            transformerOuterCircle.setAttribute('cx', transformerX);
+            transformerOuterCircle.setAttribute('cy', transformerY);
+            transformerOuterCircle.setAttribute('r', 25);
+            
+            const transformerInnerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            transformerInnerCircle.setAttribute('cx', transformerX);
+            transformerInnerCircle.setAttribute('cy', transformerY);
+            transformerInnerCircle.setAttribute('r', 15);
+            
+            const transformerLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            transformerLabel.setAttribute('x', transformerX);
+            transformerLabel.setAttribute('y', transformerY + 50);
+            transformerLabel.setAttribute('text-anchor', 'middle');
+            transformerLabel.textContent = 'Transformer';
+            
+            transformer.appendChild(transformerOuterCircle);
+            transformer.appendChild(transformerInnerCircle);
+            transformer.appendChild(transformerLabel);
+            
+            // Add neutral earthing connection
+            const neutralLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            neutralLine.setAttribute('x1', transformerX);
+            neutralLine.setAttribute('y1', transformerY + 25);
+            neutralLine.setAttribute('x2', transformerX);
+            neutralLine.setAttribute('y2', transformerY + 50);
+            
+            const earthLine1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            earthLine1.setAttribute('x1', transformerX - 15);
+            earthLine1.setAttribute('y1', transformerY + 50);
+            earthLine1.setAttribute('x2', transformerX + 15);
+            earthLine1.setAttribute('y2', transformerY + 50);
+            
+            const earthLine2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            earthLine2.setAttribute('x1', transformerX - 10);
+            earthLine2.setAttribute('y1', transformerY + 55);
+            earthLine2.setAttribute('x2', transformerX + 10);
+            earthLine2.setAttribute('y2', transformerY + 55);
+            
+            const earthLine3 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            earthLine3.setAttribute('x1', transformerX - 5);
+            earthLine3.setAttribute('y1', transformerY + 60);
+            earthLine3.setAttribute('x2', transformerX + 5);
+            earthLine3.setAttribute('y2', transformerY + 60);
+            
+            transformer.appendChild(neutralLine);
+            transformer.appendChild(earthLine1);
+            transformer.appendChild(earthLine2);
+            transformer.appendChild(earthLine3);
+            
+            networkSvg.appendChild(transformer);
+            
+            // Connection line from transformer to busbar
+            const transformerConnection = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            transformerConnection.setAttribute('x1', transformerX + 25);
+            transformerConnection.setAttribute('y1', transformerY);
+            transformerConnection.setAttribute('x2', busbarX);
+            transformerConnection.setAttribute('y2', busbarY);
+            transformerConnection.classList.add('component');
+            networkSvg.appendChild(transformerConnection);
+            
+            // Draw 33kV busbar
+            const busbar = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            busbar.classList.add('component', 'busbar');
+            
+            const busbarRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            busbarRect.setAttribute('x', busbarX);
+            busbarRect.setAttribute('y', busbarY - busbarHeight/2);
+            busbarRect.setAttribute('width', busbarLength);
+            busbarRect.setAttribute('height', busbarHeight);
+            
+            const busbarLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            busbarLabel.setAttribute('x', busbarX + busbarLength/2);
+            busbarLabel.setAttribute('y', busbarY - busbarHeight - 10);
+            busbarLabel.setAttribute('text-anchor', 'middle');
+            busbarLabel.textContent = '33kV Busbar';
+            
+            busbar.appendChild(busbarRect);
+            busbar.appendChild(busbarLabel);
+            
+            networkSvg.appendChild(busbar);
+            
+            // Draw circuit breaker
+            const circuitBreaker = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            circuitBreaker.classList.add('component', 'circuit-breaker');
+            if (!circuitBreakerClosed) {
+                circuitBreaker.classList.add('circuit-breaker-open');
+            }
+            
+            const circuitBreakerRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            circuitBreakerRect.setAttribute('x', circuitBreakerX - 20);
+            circuitBreakerRect.setAttribute('y', circuitBreakerY - 20);
+            circuitBreakerRect.setAttribute('width', 40);
+            circuitBreakerRect.setAttribute('height', 40);
+            
+            const circuitBreakerLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            circuitBreakerLine.setAttribute('x1', circuitBreakerX - 10);
+            circuitBreakerLine.setAttribute('y1', circuitBreakerY);
+            circuitBreakerLine.setAttribute('x2', circuitBreakerX + 10);
+            circuitBreakerLine.setAttribute('y2', circuitBreakerY);
+            
+            const circuitBreakerLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            circuitBreakerLabel.setAttribute('x', circuitBreakerX);
+            circuitBreakerLabel.setAttribute('y', circuitBreakerY - 30);
+            circuitBreakerLabel.setAttribute('text-anchor', 'middle');
+            circuitBreakerLabel.textContent = 'Circuit Breaker';
+            
+            circuitBreaker.appendChild(circuitBreakerRect);
+            circuitBreaker.appendChild(circuitBreakerLine);
+            circuitBreaker.appendChild(circuitBreakerLabel);
+            
+            networkSvg.appendChild(circuitBreaker);
+            
+            // Draw outgoing feeders (three phases)
+            const feederStartX = busbarX + busbarLength - 200;
+            const phaseFeederY = busbarY + busbarHeight/2;
+            
+            // Phase A feeder (red)
+            const phaseAFeeder = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            phaseAFeeder.setAttribute('x1', feederStartX);
+            phaseAFeeder.setAttribute('y1', phaseFeederY);
+            phaseAFeeder.setAttribute('x2', feederStartX);
+            phaseAFeeder.setAttribute('y2', phaseFeederY + feederLength);
+            phaseAFeeder.setAttribute('stroke', 'var(--phase-a-color)');
+            phaseAFeeder.setAttribute('stroke-width', '3');
+            networkSvg.appendChild(phaseAFeeder);
+            
+            // Phase B feeder (yellow)
+            const phaseBFeeder = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            phaseBFeeder.setAttribute('x1', feederStartX + feederSpacing);
+            phaseBFeeder.setAttribute('y1', phaseFeederY);
+            phaseBFeeder.setAttribute('x2', feederStartX + feederSpacing);
+            phaseBFeeder.setAttribute('y2', phaseFeederY + feederLength);
+            phaseBFeeder.setAttribute('stroke', 'var(--phase-b-color)');
+            phaseBFeeder.setAttribute('stroke-width', '3');
+            networkSvg.appendChild(phaseBFeeder);
+            
+            // Phase C feeder (blue)
+            const phaseCFeeder = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            phaseCFeeder.setAttribute('x1', feederStartX + 2 * feederSpacing);
+            phaseCFeeder.setAttribute('y1', phaseFeederY);
+            phaseCFeeder.setAttribute('x2', feederStartX + 2 * feederSpacing);
+            phaseCFeeder.setAttribute('y2', phaseFeederY + feederLength);
+            phaseCFeeder.setAttribute('stroke', 'var(--phase-c-color)');
+            phaseCFeeder.setAttribute('stroke-width', '3');
+            networkSvg.appendChild(phaseCFeeder);
+            
+            // Feeder label
+            const feederLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            feederLabel.setAttribute('x', feederStartX + feederSpacing);
+            feederLabel.setAttribute('y', phaseFeederY + feederLength + 30);
+            feederLabel.setAttribute('text-anchor', 'middle');
+            feederLabel.textContent = 'Outgoing Feeder 1';
+            networkSvg.appendChild(feederLabel);
+            
+            // Add fault indicator if a fault is selected and circuit breaker is closed
+            if (faultParams.type !== 'NORMAL' && circuitBreakerClosed) {
+                let faultX, faultY;
+                
+                // Position fault indicator based on selected location
+                switch (faultParams.location) {
+                    case 'busbar':
+                        faultX = busbarX + busbarLength/2;
+                        faultY = busbarY;
+                        break;
+                    case 'feeder1':
+                        faultX = feederStartX + feederSpacing;
+                        faultY = phaseFeederY + feederLength/2;
+                        break;
+                    case 'feeder2':
+                        faultX = feederStartX + 300; // Position for a second feeder (not drawn)
+                        faultY = phaseFeederY + feederLength/2;
+                        break;
+                    default:
+                        faultX = feederStartX + feederSpacing;
+                        faultY = phaseFeederY + feederLength/2;
+                }
+                
+                const faultIndicator = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                faultIndicator.setAttribute('cx', faultX);
+                faultIndicator.setAttribute('cy', faultY);
+                faultIndicator.setAttribute('r', 10);
+                faultIndicator.classList.add('fault-indicator');
+                
+                const faultText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                faultText.setAttribute('x', faultX);
+                faultText.setAttribute('y', faultY + 30);
+                faultText.setAttribute('text-anchor', 'middle');
+                faultText.setAttribute('fill', 'var(--danger-color)');
+                faultText.setAttribute('font-weight', 'bold');
+                faultText.textContent = 'FAULT';
+                
+                networkSvg.appendChild(faultIndicator);
+                networkSvg.appendChild(faultText);
+            }
+        }
